@@ -17,7 +17,7 @@ class Calculations{
         static Eigen::Vector3d calculatePolygonSurfaceNormal(Eigen::Vector3d a, Eigen::Vector3d b, Eigen::Vector3d c){
             Eigen::Vector3d mp1 = b - a;
             Eigen::Vector3d mp2 = c - a;
-            return mp1.cross(mp2);
+            return mp1.cross(mp2).normalized();
         }
 
         static double degreesToRadians(double fov){

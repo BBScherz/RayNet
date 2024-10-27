@@ -117,7 +117,7 @@ unsigned char* Scene::trace(int xStart, int yStart, int xEnd, int yEnd){
                 #pragma omp critical
                 {
                 sceneProgress += sceneProgressIncrement;
-                cout << (sceneProgress * 100) << "%\r" << flush;
+                cout << int(sceneProgress * 100) << "\r" << flush;
                 }
         }
 

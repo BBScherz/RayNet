@@ -278,18 +278,14 @@ Scene SceneFileParser::parseSceneFile(string file){
                             }
 
                             // used to ensure that fanning of polygons does not flip normal orientation of later polygons
-                            Poly comparisonPolygon;
-                            comparisonPolygon.appendVertex(verts.at(0));
-                            comparisonPolygon.appendVertex(verts.at(1));
-                            comparisonPolygon.appendVertex(verts.at(2));
-                            Eigen::Vector3d n0 = Calculations::calculatePolygonSurfaceNormal(comparisonPolygon.getVertices().at(0).getCoordinates(), 
-                                                                                            comparisonPolygon.getVertices().at(1).getCoordinates(), 
-                                                                                            comparisonPolygon.getVertices().at(2).getCoordinates());
-                            comparisonPolygon.setSurfaceNormal(n0);
+                            Eigen::Vector3d n0 = Calculations::calculatePolygonSurfaceNormal(verts.at(0).getCoordinates(), 
+                                                                                            verts.at(1).getCoordinates(), 
+                                                                                            verts.at(2).getCoordinates());
                             Poly* priorPoly = nullptr;
-                            Vertex seedVertex = verts.front();
+                            Vertex seedVertex = verts.at(0);
                             Vertex v1, v2;
-                            for (unsigned int i = 1; i < verts.size() - 1; i++)
+                            unsigned int i;
+                            for (i = 1; i < verts.size() - 1; i++)
                             {
                                 polygon = new Poly();
                                 v1 = verts.at(i);
@@ -312,9 +308,11 @@ Scene SceneFileParser::parseSceneFile(string file){
                                             polygon->appendVertex(verts.at(i));
                                             i++;
                                         }
-                                        polygon->setSurfaceNormal(comparisonPolygon.getSurfaceNormal().normalized());
+                                        polygon->setSurfaceNormal(n0.normalized());
+                                        cout << "concave normal=" << polygon->getSurfaceNormal() << endl;
                                         scene.objects.push_back(polygon);
                                         priorPoly = nullptr;
+                                        clearStreamMacro(dataStream);
                                         break;
                                     }
                                 }

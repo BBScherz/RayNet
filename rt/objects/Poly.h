@@ -93,17 +93,18 @@ bool Poly::calculateIntersection(IntersectionRecord& record, Ray r, double minim
         
         int projectionCoordinateOne;
         int projectionCoordinateTwo;
-        double distanceToInterseciton = (vertices.at(0).getCoordinates() - r.getOrigin()).dot(surfaceNormal) / r.getDirection().dot(surfaceNormal);
+        double distanceToInterseciton = ((vertices.at(0).getCoordinates() - r.getOrigin()).dot(surfaceNormal)) / r.getDirection().dot(surfaceNormal);
+        if(distanceToInterseciton > maximumDistance){return false;}
         Eigen::Vector3d polygonIntersectionCoordinates = r.getOrigin() + (r.getDirection() * distanceToInterseciton);
 
         double absoluteNormalX = abs(surfaceNormal[0]);
         double absoluteNormalY = abs(surfaceNormal[1]);
         double absoluteNormalZ = abs(surfaceNormal[2]);
 
-        if(absoluteNormalX < absoluteNormalZ && absoluteNormalY < absoluteNormalZ){
+        if((absoluteNormalZ > absoluteNormalX) && (absoluteNormalZ > absoluteNormalX)){
             projectionCoordinateOne = 0;
             projectionCoordinateTwo = 1;
-        }else if(absoluteNormalX < absoluteNormalY){
+        }else if((absoluteNormalY > absoluteNormalX)){
             projectionCoordinateOne = 0;
             projectionCoordinateTwo = 2;
         }else{
@@ -115,21 +116,6 @@ bool Poly::calculateIntersection(IntersectionRecord& record, Ray r, double minim
         double a;
         int edgeIntersections = 0;
         Eigen::Vector2d planarProjectedIntersection = {polygonIntersectionCoordinates[projectionCoordinateOne], polygonIntersectionCoordinates[projectionCoordinateTwo]};
-
-        // Eigen::Matrix2d l;
-        // Eigen::Vector2d j(1, 0);
-        // Eigen::Vector2d v0(vertices.at(0).getCoordinates()[projectionCoordinateOne], vertices.at(0).getCoordinates()[projectionCoordinateTwo]);
-        // Eigen::Vector2d v1(vertices.at(vertices.size() - 1).getCoordinates()[projectionCoordinateOne], vertices.at(vertices.size() - 1).getCoordinates()[projectionCoordinateTwo]);
-        // Eigen::Vector2d r0(v1 - planarProjectedIntersection);
-        // l.col(0) = v1 - v0;
-        // l.col(1) = j;
-        // a = (l.inverse() * r0)[0];
-        // if(a <= 1 && a >= 0){
-        //     s = (l.inverse() * r0)[1];
-        //     if(s >= 0){
-        //         edgeIntersections++;
-        //     }
-        // }
         
         for(unsigned int v = 0; v < vertices.size() - 1; v++){
 
@@ -183,12 +169,11 @@ bool Poly::calculateIntersection(IntersectionRecord& record, Ray r, double minim
 }
 
 Eigen::Vector3d Poly::computeCompositeColor(IntersectionRecord& record, Ray r, vector<Light> lights, vector<Object*> objects, Eigen::Vector3d backdrop, int& recursionDepth, int maximumDepth){
-    // cout << "computing composite" << endl;
+
     Eigen::Vector3d compositeColor;
     compositeColor.setZero();
     double lightIntensity = 1.0 / sqrt(lights.size());
 
-    // cout << "checking for shadow" << endl;
     for(Light l: lights){
 
         bool isPointInShadow = false;
@@ -219,7 +204,6 @@ Eigen::Vector3d Poly::computeCompositeColor(IntersectionRecord& record, Ray r, v
     IntersectionRecord reflectionIntersectionRecord;
     Ray reflectionRay(record.getIntersectionPoint(), reflectionDirection);
 
-    // cout << "finding next object" << endl;
     double maximumReflectionDistance = INFINITY;
     Object* nearestObject = nullptr;
     for(Object* nextObject: objects){

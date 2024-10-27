@@ -8,7 +8,7 @@ from concurrent import futures
 import queue
 import threading
 
-jobQueue = queue.Queue(100)
+jobQueue = queue.Queue(10)
 
 
 
@@ -29,17 +29,17 @@ def createJobs(filename):
 
     jobCounter = 0
     horizontalSlices = 2 if horizontalResolution % 2 == 0 else 1
-    for y in range(verticalResolution):
+    for scanline in range(0, verticalResolution):
         
-        print('creating jobs for y=', y)
+        print('creating jobs for y=', scanline)
 
         if horizontalSlices == 2:
 
-            rectOneStart = render_pb2.Coordinate(x=0, y=y)
-            rectOneEnd = render_pb2.Coordinate(x=horizontalResolution // 2, y=y + 1)
+            rectOneStart = render_pb2.Coordinate(x=0, y=scanline)
+            rectOneEnd = render_pb2.Coordinate(x=horizontalResolution // 2, y=(scanline + 1))
 
-            rectTwoStart = render_pb2.Coordinate(x=horizontalResolution // 2, y=y)
-            rectTwoEnd = render_pb2.Coordinate(x=horizontalResolution, y=y + 1)
+            rectTwoStart = render_pb2.Coordinate(x=horizontalResolution // 2, y=scanline)
+            rectTwoEnd = render_pb2.Coordinate(x=horizontalResolution, y=(scanline + 1))
 
             rect1 = render_pb2.Rectangle(lower_left=rectOneStart, upper_right=rectOneEnd)
             rect2 = render_pb2.Rectangle(lower_left=rectTwoStart, upper_right=rectTwoEnd)
@@ -51,8 +51,8 @@ def createJobs(filename):
 
             
         else:
-            rectStart = render_pb2.Coordinate(x=0, y=y)
-            rectEnd = render_pb2.Coordinate(x=horizontalResolution, y=y + 1)
+            rectStart = render_pb2.Coordinate(x=0, y=scanline)
+            rectEnd = render_pb2.Coordinate(x=horizontalResolution, y=(scanline + 1))
             rect = render_pb2.Rectangle(lower_left=rectStart, upper_right=rectEnd)
 
             jobCounter += 1
@@ -93,7 +93,7 @@ def bootstrap():
     print("server is up!")
     
 
-    createJobs('../rt/file/tetra-3.nff')
+    createJobs('../rt/file/4k-teapot-3.nff')
     
 
 

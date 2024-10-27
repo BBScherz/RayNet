@@ -1,4 +1,5 @@
 #include<iostream>
+#include <chrono>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -14,8 +15,23 @@ using namespace std;
 
 int main(int argc, char* argv[]){
     
+
+    if(argc != 6){
+        cerr << "Error starting TracerModule.  Exiting..." << endl;
+        exit(-1);
+    }
+
+    string file = argv[1];
+    int beginx = atoi(argv[2]);
+    int endx = atoi(argv[3]);
+    int beginy = atoi(argv[4]);
+    int endy = atoi(argv[5]);
+    cout << beginx << " " << beginy << " " << endx << " " << endy << endl;
+
+    chrono::steady_clock::time_point begin = chrono::steady_clock::now();
+
     SceneFileParser parser;
-    Scene scene = parser.parseSceneFile("4k-teapot-3.nff");
+    Scene scene = parser.parseSceneFile(file);
     scene.summarize();
 
     #ifdef _OPENMP
@@ -23,12 +39,20 @@ int main(int argc, char* argv[]){
     #endif
 
 
-    int beginx = 0;
-    int endx = 4096;
-    int beginy = 0;
-    int endy = 2160;
+
+    
     unsigned char* redneredChunk = scene.trace(beginx, beginy, endx, endy);
+    chrono::steady_clock::time_point end = chrono::steady_clock::now();
+
     cout << "Chunk Rendered: (" << endx - beginx << 'x' << endy - beginy << ")"  << endl;
+    cout << "Render time (wall): " << chrono::duration_cast<chrono::seconds>(end - begin).count() << "(seconds)" << endl;
+    #ifdef _OPENMP
+    cout << "Parallelism Enabled" << endl;
+    #else
+    cout << "Parallelism Disabled" << endl;
+    #endif
+
+
 
     std::ofstream out("test.ppm", ios::out | ios::binary);
     out<<"P6"<<"\n"<<(endx - beginx)<<" "<<(endy - beginy)<<"\n"<<255<<"\n";
