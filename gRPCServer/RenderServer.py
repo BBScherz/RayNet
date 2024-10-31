@@ -1,15 +1,19 @@
+import time
 from protocolimpls import render_pb2_grpc
 from protocolimpls import render_pb2
 
 import grpc
+import os
+
 from concurrent import futures
 
-
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 import queue
 import threading
 
 jobQueue = queue.Queue(10)
-
+SCENEPATH = "scene_file"
 
 
 def createJobs(filename):
@@ -59,11 +63,15 @@ def createJobs(filename):
             jobQueue.put(render_pb2.GetJobResponse(image_coordinates_to_render=rect, job_id=jobCounter))
 
 
-def threadTask():
-    while True:
-        j = jobQueue.get()
-        print(j)
-        jobQueue.task_done()
+
+
+class FilePlacementHandler(FileSystemEventHandler):
+
+    def on_created(self, event):
+        if not event.is_directory:
+            print("Beginning job creation!")
+            createJobs(event.src_path)
+
 
 
 
@@ -92,13 +100,25 @@ def bootstrap():
     renderServer.start()
     print("server is up!")
     
+    fsObserver = Observer()
+    fsObserver.schedule(event_handler=FilePlacementHandler(), path=os.path.join(os.getcwd(), SCENEPATH), recursive=False)
+    fsObserver.start()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        fsObserver.stop()
+    
+    
 
-    createJobs('../rt/file/4k-teapot-3.nff')
+
+
+    # createJobs('../rt/file/4k-teapot-3.nff')
     
 
 
     renderServer.wait_for_termination()
     print("server shutdown")
-
+    fsObserver.join()
 if __name__ == '__main__':
     bootstrap()
