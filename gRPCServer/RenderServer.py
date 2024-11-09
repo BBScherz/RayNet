@@ -13,6 +13,7 @@ import queue
 import threading
 
 jobQueue = queue.Queue(10)
+resultQueue = queue.Queue()
 SCENEPATH = "scene_file"
 
 
@@ -30,6 +31,10 @@ def createJobs(filename):
                 horizontalResolution = int(parsed[1])
                 verticalResolution = int(parsed[2])
                 break
+
+
+    with open(file="output.ppm", mode='w') as ppm:
+        ppm.writelines(['P6\n', str(horizontalResolution) + ' ' + str(verticalResolution) + '\n', '255\n'])
 
     jobCounter = 0
     horizontalSlices = 2 if horizontalResolution % 2 == 0 else 1
@@ -64,6 +69,18 @@ def createJobs(filename):
 
 
 
+def stitch():
+     
+    while True:
+        chunk = resultQueue.get()
+        with open("output.ppm", 'ab') as ppm:
+               print('appending chunk...')
+               ppm.write(chunk)
+        if resultQueue.qsize() == 0:
+            break
+
+    print("image stitched!!")
+
 
 class FilePlacementHandler(FileSystemEventHandler):
 
@@ -71,6 +88,7 @@ class FilePlacementHandler(FileSystemEventHandler):
         if not event.is_directory:
             print("Beginning job creation!")
             createJobs(event.src_path)
+            stitch()
 
 
 
@@ -87,6 +105,16 @@ class RenderServiceServicer(render_pb2_grpc.RenderServiceServicer):
     def GetJob(self, request, context):
         
         return jobQueue.get()
+
+
+    def JobComplete(self, request, context):
+
+        print('result received!')
+        chunk = request.render_chunk
+        resultQueue.put(chunk)
+        
+
+        return render_pb2.JobCompleteResponse(acknowledged=True)
 
 
 
