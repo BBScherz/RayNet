@@ -35,7 +35,10 @@ int main(int argc, char* argv[]){
     scene.summarize();
 
     #ifdef _OPENMP
+    cout << "Parallelism Enabled" << endl;
     cout << "total number of openmp compute devices = " << omp_get_num_devices() << endl;
+    #else
+    cout << "Parallelism Disabled" << endl;
     #endif
 
 
@@ -45,13 +48,8 @@ int main(int argc, char* argv[]){
     chrono::steady_clock::time_point end = chrono::steady_clock::now();
 
     cout << "Chunk Rendered: (" << endx - beginx << 'x' << endy - beginy << ")"  << endl;
-    cout << "Render time (wall): " << chrono::duration_cast<chrono::seconds>(end - begin).count() << "(seconds)" << endl;
-    #ifdef _OPENMP
-    cout << "Parallelism Enabled" << endl;
-    #else
-    cout << "Parallelism Disabled" << endl;
-    #endif
-
+    cout << "Pixels Rednered: " << (endx - beginx) * (endy - beginy) << endl;
+    cout << "Render time (wall): " << chrono::duration_cast<chrono::seconds>(end - begin).count() << "(seconds)" << endl;    
 
 
     std::ofstream out("chunk.temp", ios::out | ios::binary);

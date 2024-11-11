@@ -39,15 +39,20 @@ def startup():
             yend = currentJob.image_coordinates_to_render.upper_right.y
 
             
-
-            startupTask = subprocess.run([bin + binaryTag, 'tetra-3.nff', str(int(xbegin)), str(int(xend)), str(int(ybegin)), str(int(yend))], text=True, capture_output=True)
+            startTime = time.time()
+            startupTask = subprocess.run([bin + binaryTag, 'teapot-3.nff', str(int(xbegin)), str(int(xend)), str(int(ybegin)), str(int(yend))], text=True, capture_output=True)
             startupTask.check_returncode()
-            print(f"Finishing rendering ({xbegin},{ybegin}) to ({xend},{yend})")
+            elapsed = int(time.time() - startTime)
+            
+            print(f"Finished rendering ({xbegin},{ybegin}) to ({xend},{yend})")
             time.sleep(0.25)
-            with open(os.path.join(os.getcwd(), "chunk.temp"), 'rb', encoding='ascii') as chunk:
-                data = chunk.readline()
-                completed = render_pb2.JobCompleteRequest(render_chunk=data, job_id=currentJob.job_id, stats=render_pb2.ComputationStatistics(time_seconds=0, pixels_rendered=0))
+            with open(file=os.path.join(os.getcwd(), "chunk.temp"), mode='rb') as chunk:
+                data = chunk.read()
+                print(data)
+                pixelsRendered = (xend - xbegin) * (yend - ybegin)
+                completed = render_pb2.JobCompleteRequest(render_chunk=data, job_id=currentJob.job_id, stats=render_pb2.ComputationStatistics(time_seconds=elapsed, pixels_rendered=int(pixelsRendered)))
                 methodStub.JobComplete(completed)
+            os.remove(path=os.path.join(os.getcwd(), "chunk.temp"))
                 
 
             

@@ -10,15 +10,18 @@ from concurrent import futures
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import queue
-import threading
 
+jobsExpected = 0
+jobsCompleted = 0
 jobQueue = queue.Queue(10)
-resultQueue = queue.Queue()
+resultList = []
+# resultQueue = queue.Queue()
 SCENEPATH = "scene_file"
 
 
 def createJobs(filename):
 
+    global jobsExpected
     horizontalResolution = 0
     verticalResolution = 0
 
@@ -36,48 +39,44 @@ def createJobs(filename):
     with open(file="output.ppm", mode='w') as ppm:
         ppm.writelines(['P6\n', str(horizontalResolution) + ' ' + str(verticalResolution) + '\n', '255\n'])
 
+
+    jobsExpected = verticalResolution
     jobCounter = 0
-    horizontalSlices = 2 if horizontalResolution % 2 == 0 else 1
     for scanline in range(0, verticalResolution):
         
         print('creating jobs for y=', scanline)
-
-        if horizontalSlices == 2:
-
-            rectOneStart = render_pb2.Coordinate(x=0, y=scanline)
-            rectOneEnd = render_pb2.Coordinate(x=horizontalResolution // 2, y=(scanline + 1))
-
-            rectTwoStart = render_pb2.Coordinate(x=horizontalResolution // 2, y=scanline)
-            rectTwoEnd = render_pb2.Coordinate(x=horizontalResolution, y=(scanline + 1))
-
-            rect1 = render_pb2.Rectangle(lower_left=rectOneStart, upper_right=rectOneEnd)
-            rect2 = render_pb2.Rectangle(lower_left=rectTwoStart, upper_right=rectTwoEnd)
-
-            jobCounter += 1
-            jobQueue.put(render_pb2.GetJobResponse(image_coordinates_to_render=rect1, job_id=jobCounter))
-            jobCounter += 1
-            jobQueue.put(render_pb2.GetJobResponse(image_coordinates_to_render=rect2, job_id=jobCounter))
-
             
-        else:
-            rectStart = render_pb2.Coordinate(x=0, y=scanline)
-            rectEnd = render_pb2.Coordinate(x=horizontalResolution, y=(scanline + 1))
-            rect = render_pb2.Rectangle(lower_left=rectStart, upper_right=rectEnd)
-
-            jobCounter += 1
-            jobQueue.put(render_pb2.GetJobResponse(image_coordinates_to_render=rect, job_id=jobCounter))
+        rectStart = render_pb2.Coordinate(x=0, y=scanline)
+        rectEnd = render_pb2.Coordinate(x=horizontalResolution, y=(scanline + 1))
+        rect = render_pb2.Rectangle(lower_left=rectStart, upper_right=rectEnd)
+        jobCounter += 1
+        jobQueue.put(render_pb2.GetJobResponse(image_coordinates_to_render=rect, job_id=jobCounter))
 
 
 
 def stitch():
-     
+
+    
     while True:
-        chunk = resultQueue.get()
-        with open("output.ppm", 'ab') as ppm:
-               print('appending chunk...')
-               ppm.write(chunk)
-        if resultQueue.qsize() == 0:
+        if(jobsCompleted == jobsExpected):
+            print('all chunks received: ' + str(len(resultList)))
+            for chunk in resultList:
+                with open("output.ppm", 'ab') as ppm:
+                    # print('appending chunk...')
+                    ppm.write(chunk)
+                
             break
+        else:
+            print('delaying')
+            time.sleep(1)
+
+    # while True:
+    #     chunk = resultQueue.get()
+    #     with open("output.ppm", 'ab') as ppm:
+    #            print('appending chunk...')
+    #            ppm.write(chunk)
+    #     if resultQueue.qsize() == 0:
+    #         break
 
     print("image stitched!!")
 
@@ -110,8 +109,12 @@ class RenderServiceServicer(render_pb2_grpc.RenderServiceServicer):
     def JobComplete(self, request, context):
 
         print('result received!')
+        global jobsCompleted
+        jobsCompleted += 1
         chunk = request.render_chunk
-        resultQueue.put(chunk)
+        resultList.insert(request.job_id, chunk)
+        
+        # resultQueue.put(chunk)
         
 
         return render_pb2.JobCompleteResponse(acknowledged=True)
@@ -137,13 +140,6 @@ def bootstrap():
     except KeyboardInterrupt:
         fsObserver.stop()
     
-    
-
-
-
-    # createJobs('../rt/file/4k-teapot-3.nff')
-    
-
 
     renderServer.wait_for_termination()
     print("server shutdown")

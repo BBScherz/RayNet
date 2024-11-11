@@ -58,10 +58,11 @@ unsigned char* Scene::trace(int xStart, int yStart, int xEnd, int yEnd){
     const int threadCeiling = thread::hardware_concurrency() / 2;
     #pragma omp parallel for collapse(2) num_threads(threadCeiling)
     #endif
-    for(int y = 0; y < yEnd - yStart; y++){
+    for(int y = 0; y < yResolution; y++){
         
-        for(int x = 0; x < xEnd - xStart; x++){
+        for(int x = 0; x < xResolution; x++){
 
+            if((x < xEnd && x >= xStart) && (y < yEnd && y >= yStart)){
                 bool anyIntersection = false;
                 int superSamples = 8;
                 Eigen::Vector3d superSampledColor;
@@ -103,13 +104,13 @@ unsigned char* Scene::trace(int xStart, int yStart, int xEnd, int yEnd){
                 
                 if(anyIntersection){
 
-                    render[3 * (y * (xEnd - xStart) + x) + 0] = min((superSampledColor[0] / superSamples) * 255, 255.0);
-                    render[3 * (y * (xEnd - xStart) + x) + 1] = min((superSampledColor[1] / superSamples) * 255, 255.0);
-                    render[3 * (y * (xEnd - xStart) + x) + 2] = min((superSampledColor[2] / superSamples) * 255, 255.0);
+                    render[3 * ((y - yStart) * (xEnd - xStart) + (x - xStart)) + 0] = min((superSampledColor[0] / superSamples) * 255, 255.0);
+                    render[3 * ((y - yStart) * (xEnd - xStart) + (x - xStart)) + 1] = min((superSampledColor[1] / superSamples) * 255, 255.0);
+                    render[3 * ((y - yStart) * (xEnd - xStart) + (x - xStart)) + 2] = min((superSampledColor[2] / superSamples) * 255, 255.0);
                 }else{
-                    render[3 * (y * (xEnd - xStart) + x) + 0] = this->backdropColor[0] * 255;
-                    render[3 * (y * (xEnd - xStart) + x) + 1] = this->backdropColor[1] * 255;
-                    render[3 * (y * (xEnd - xStart) + x) + 2] = this->backdropColor[2] * 255;
+                    render[3 * ((y - yStart) * (xEnd - xStart) + (x - xStart)) + 0] = this->backdropColor[0] * 255;
+                    render[3 * ((y - yStart) * (xEnd - xStart) + (x - xStart)) + 1] = this->backdropColor[1] * 255;
+                    render[3 * ((y - yStart) * (xEnd - xStart) + (x - xStart)) + 2] = this->backdropColor[2] * 255;
                 }
 
                 
@@ -119,6 +120,7 @@ unsigned char* Scene::trace(int xStart, int yStart, int xEnd, int yEnd){
                 sceneProgress += sceneProgressIncrement;
                 cout << int(sceneProgress * 100) << "\r" << flush;
                 }
+            }
         }
 
     }
