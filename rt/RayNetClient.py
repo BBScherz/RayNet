@@ -5,8 +5,6 @@ import grpc
 import time
 
 import sys
-# from ..gRPCServer.protocolimpls import render_pb2, render_pb2_grpc
-sys.path.insert(0,'../gRPCServer/')
 from protocolimpls import render_pb2_grpc # type: ignore
 from protocolimpls import render_pb2 # type: ignore
 
@@ -40,7 +38,7 @@ def startup():
 
             
             startTime = time.time()
-            startupTask = subprocess.run([bin + binaryTag, 'teapot-3.nff', str(int(xbegin)), str(int(xend)), str(int(ybegin)), str(int(yend))], text=True, capture_output=True)
+            startupTask = subprocess.run([bin + binaryTag, 'tetra-3.nff', str(int(xbegin)), str(int(xend)), str(int(ybegin)), str(int(yend))], text=True, capture_output=True)
             startupTask.check_returncode()
             elapsed = int(time.time() - startTime)
             
@@ -48,7 +46,6 @@ def startup():
             time.sleep(0.25)
             with open(file=os.path.join(os.getcwd(), "chunk.temp"), mode='rb') as chunk:
                 data = chunk.read()
-                print(data)
                 pixelsRendered = (xend - xbegin) * (yend - ybegin)
                 completed = render_pb2.JobCompleteRequest(render_chunk=data, job_id=currentJob.job_id, stats=render_pb2.ComputationStatistics(time_seconds=elapsed, pixels_rendered=int(pixelsRendered)))
                 methodStub.JobComplete(completed)
