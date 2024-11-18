@@ -41,7 +41,16 @@ class Scene{
 Scene::Scene(){}
 Scene::~Scene()
 {
- this->objects.clear();   
+    
+    for(Object* o: this->objects){
+        delete o;
+        o = nullptr;
+    }
+
+    delete this->cam;
+    this->cam = nullptr;
+
+    this->objects.clear();   
 }
 
 
@@ -51,8 +60,6 @@ unsigned char* Scene::trace(int xStart, int yStart, int xEnd, int yEnd){
     double sceneDistance = Calculations::sceneBorderWidth(this->fov);
     double pixelWidth =  Calculations::calculatePixelWidth(sceneDistance, this->xResolution);
 
-    double sceneProgress = 0.0;
-    double sceneProgressIncrement = 1.0 / ((yEnd - yStart) * (xEnd - xStart));
     #ifdef _OPENMP
     omp_set_dynamic(0);
     const int threadCeiling = thread::hardware_concurrency() / 2;
@@ -111,14 +118,6 @@ unsigned char* Scene::trace(int xStart, int yStart, int xEnd, int yEnd){
                     render[3 * ((y - yStart) * (xEnd - xStart) + (x - xStart)) + 0] = this->backdropColor[0] * 255;
                     render[3 * ((y - yStart) * (xEnd - xStart) + (x - xStart)) + 1] = this->backdropColor[1] * 255;
                     render[3 * ((y - yStart) * (xEnd - xStart) + (x - xStart)) + 2] = this->backdropColor[2] * 255;
-                }
-
-                
-
-                #pragma omp critical
-                {
-                sceneProgress += sceneProgressIncrement;
-                cout << int(sceneProgress * 100) << "\r" << flush;
                 }
             }
         }

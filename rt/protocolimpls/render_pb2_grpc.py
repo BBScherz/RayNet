@@ -49,6 +49,11 @@ class RenderServiceStub(object):
                 request_serializer=render__pb2.JobCompleteRequest.SerializeToString,
                 response_deserializer=render__pb2.JobCompleteResponse.FromString,
                 _registered_method=True)
+        self.GrabScene = channel.unary_unary(
+                '/render.RenderService/GrabScene',
+                request_serializer=render__pb2.GetCurrentSceneRequest.SerializeToString,
+                response_deserializer=render__pb2.GetCurrentSceneResponse.FromString,
+                _registered_method=True)
 
 
 class RenderServiceServicer(object):
@@ -72,6 +77,12 @@ class RenderServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GrabScene(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_RenderServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -89,6 +100,11 @@ def add_RenderServiceServicer_to_server(servicer, server):
                     servicer.JobComplete,
                     request_deserializer=render__pb2.JobCompleteRequest.FromString,
                     response_serializer=render__pb2.JobCompleteResponse.SerializeToString,
+            ),
+            'GrabScene': grpc.unary_unary_rpc_method_handler(
+                    servicer.GrabScene,
+                    request_deserializer=render__pb2.GetCurrentSceneRequest.FromString,
+                    response_serializer=render__pb2.GetCurrentSceneResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -172,6 +188,33 @@ class RenderService(object):
             '/render.RenderService/JobComplete',
             render__pb2.JobCompleteRequest.SerializeToString,
             render__pb2.JobCompleteResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GrabScene(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/render.RenderService/GrabScene',
+            render__pb2.GetCurrentSceneRequest.SerializeToString,
+            render__pb2.GetCurrentSceneResponse.FromString,
             options,
             channel_credentials,
             insecure,

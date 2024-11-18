@@ -7,6 +7,14 @@ message GetJobRequest {
   int64 project_id = 1;
 }
 
+message GetCurrentSceneRequest {
+  // Empty
+}
+
+message GetCurrentSceneResponse {
+  bytes scene_data = 1;
+}
+
 message Coordinate {
   double x = 1;
   double y = 2;
@@ -54,5 +62,7 @@ service RenderService {
   rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
 
   rpc JobComplete(JobCompleteRequest) returns (JobCompleteResponse);
+
+  rpc GrabScene(GetCurrentSceneRequest) returns (GetCurrentSceneResponse);
 }
 

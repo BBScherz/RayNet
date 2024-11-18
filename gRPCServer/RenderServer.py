@@ -11,9 +11,7 @@ import threading
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import queue
-import ffmpeg
 import logging
-
 
 
 jobsExpected = 0
@@ -33,6 +31,7 @@ def createJobs(filename):
     horizontalResolution = 0
     verticalResolution = 0
     logging.info('Beginning scene file parsing...')
+    
     with open(file=filename, mode='r') as nff:
         
         for line in nff:
@@ -128,10 +127,22 @@ class RenderServiceServicer(render_pb2_grpc.RenderServiceServicer):
         with resultLock:
             resultMap[request.job_id] = chunk
         
-        
-
         return render_pb2.JobCompleteResponse(acknowledged=True)
+    
 
+    def Heartbeat(self, request, context):
+        return render_pb2.HeartbeatResponse(alive=True)
+    
+    def GrabScene(self, request, context):
+
+        data = None
+        with open(os.path.join(SCENEPATH, os.listdir(SCENEPATH)[0]), 'rb') as scene:
+            data = scene.read()
+
+        return render_pb2.GetCurrentSceneResponse(scene_data=data)
+
+
+    
 
 
 

@@ -17,9 +17,7 @@ class Poly : public Object{
         Poly(){};
         Poly(Eigen::Vector3d position){};
         Poly(Eigen::Vector3d position, Eigen::Vector3d normal){};
-        ~Poly(){
-            this->vertices.clear();
-        }
+        ~Poly(){}
 
         void appendVertex(stringstream& ss, bool hasVertexNormal);
         void appendVertex(Vertex v){

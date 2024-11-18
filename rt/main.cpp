@@ -36,7 +36,6 @@ int main(int argc, char* argv[]){
 
     #ifdef _OPENMP
     cout << "Parallelism Enabled" << endl;
-    cout << "total number of openmp compute devices = " << omp_get_num_devices() << endl;
     #else
     cout << "Parallelism Disabled" << endl;
     #endif
@@ -53,7 +52,6 @@ int main(int argc, char* argv[]){
 
 
     std::ofstream out("chunk.temp", ios::out | ios::binary);
-    // out<<"P6"<<"\n"<<(endx - beginx)<<" "<<(endy - beginy)<<"\n"<<255<<"\n";
     out.write(reinterpret_cast<char*>(redneredChunk), (endx - beginx) * (endy - beginy) * 3);
     out.close();
     delete[] redneredChunk;

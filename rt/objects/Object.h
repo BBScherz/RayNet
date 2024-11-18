@@ -39,10 +39,6 @@ struct Material
 
 class Object{
 
-    private:
-    
-        
-        
 
     protected:
         struct Material __material;
@@ -52,6 +48,8 @@ class Object{
 
         //this constant prevents objects reflecting off themselves
         const double __bias = 1e-6;
+
+        virtual ~Object() = default;
 
         //all objects must be able to calculate if a ray has hit
         virtual bool calculateIntersection(IntersectionRecord& record, Ray r, double minimumDistance, double maximumDistance) = 0;

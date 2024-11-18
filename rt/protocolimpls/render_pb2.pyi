@@ -10,6 +10,16 @@ class GetJobRequest(_message.Message):
     project_id: int
     def __init__(self, project_id: _Optional[int] = ...) -> None: ...
 
+class GetCurrentSceneRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetCurrentSceneResponse(_message.Message):
+    __slots__ = ("scene_data",)
+    SCENE_DATA_FIELD_NUMBER: _ClassVar[int]
+    scene_data: bytes
+    def __init__(self, scene_data: _Optional[bytes] = ...) -> None: ...
+
 class Coordinate(_message.Message):
     __slots__ = ("x", "y")
     X_FIELD_NUMBER: _ClassVar[int]
