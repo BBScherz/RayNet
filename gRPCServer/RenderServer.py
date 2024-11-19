@@ -32,21 +32,30 @@ def createJobs(filename):
     verticalResolution = 0
     logging.info('Beginning scene file parsing...')
     
-    with open(file=filename, mode='r') as nff:
-        
-        for line in nff:
-            parsed = line.strip().split()
+    try:
+        with open(file=filename, mode='r', encoding='ascii') as nff:
+            lines = nff.readlines()
+            print('ingested ', len(lines), 'lines of input file')
+            for line in lines:
 
-            if(len(parsed) > 0 and parsed[0] == 'resolution'):
-                horizontalResolution = int(parsed[1])
-                verticalResolution = int(parsed[2])
-                break
-        logging.info('Resolution data found')
-
+                print(line)
+                parsed = line.strip().split()
+                
+                if(len(parsed) > 0 and parsed[0] == 'resolution'):
+                    horizontalResolution = int(parsed[1])
+                    verticalResolution = int(parsed[2])
+                    break
+            logging.info('Resolution data found')
+            print('found resolution ', horizontalResolution, 'x', verticalResolution)
+    except FileNotFoundError:
+        print("File not found!")
+    except PermissionError:
+        print("Permission denied!")
+    except Exception as e:
+        print("An error occurred:", e)
 
     with open(file="output.ppm", mode='w') as ppm:
         ppm.writelines(['P6\n', str(horizontalResolution) + ' ' + str(verticalResolution) + '\n', '255\n'])
-
 
     logging.info('Creating jobs...')
     jobsExpected = verticalResolution
@@ -58,7 +67,7 @@ def createJobs(filename):
         rect = render_pb2.Rectangle(lower_left=rectStart, upper_right=rectEnd)
         jobCounter += 1
         jobQueue.put(render_pb2.GetJobResponse(image_coordinates_to_render=rect, job_id=jobCounter))
-
+        
 
 def cleanupServerResources():
     global jobsCompleted, jobsExpected
