@@ -3,3 +3,4 @@
 raynet-d2946-firebase-adminsdk-gw9y3-8d478151d2.json
 .instance/users.db
 .migrations/
+.DS_Store
