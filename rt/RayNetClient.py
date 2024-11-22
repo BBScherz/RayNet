@@ -22,7 +22,7 @@ def startup():
 
     binaryTag = '.exe' if platform.system() == 'Windows' else ''
     
-    connection = grpc.insecure_channel("127.0.0.1:50505")
+    connection = grpc.insecure_channel("ec2-44-198-38-235.compute-1.amazonaws.com:50051")
     methodStub = render_pb2_grpc.RenderServiceStub(connection)
 
     # try:
@@ -30,6 +30,7 @@ def startup():
     data = methodStub.GrabScene(render_pb2.GetCurrentSceneRequest())
     with open('../file/scene.nff', 'wb') as scene:
         scene.write(data.scene_data)
+
     while True:
         currentJob = methodStub.GetJob(render_pb2.GetJobRequest(project_id=0))
         if currentJob != None:
@@ -40,7 +41,7 @@ def startup():
             yend = currentJob.image_coordinates_to_render.upper_right.y
 
             startTime = time.time()
-            startupTask = subprocess.run([bin + binaryTag, 'scene.nff', str(int(xbegin)), str(int(xend)), str(int(ybegin)), str(int(yend))], text=True, capture_output=True)
+            startupTask = subprocess.run([bin + binaryTag, 'scene.nff', str(int(xbegin)), str(int(xend)), str(int(ybegin)), str(int(yend))], text=True, capture_output=False)
             startupTask.check_returncode()
             elapsed = int(time.time() - startTime)
             print(f"Finished rendering ({xbegin},{ybegin}) to ({xend},{yend})")

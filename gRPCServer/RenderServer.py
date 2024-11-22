@@ -31,6 +31,7 @@ def createJobs(filename):
     horizontalResolution = 0
     verticalResolution = 0
     logging.info('Beginning scene file parsing...')
+    print("opening: ", filename)
     
     try:
         with open(file=filename, mode='r', encoding='ascii') as nff:
@@ -46,7 +47,6 @@ def createJobs(filename):
                     verticalResolution = int(parsed[2])
                     break
             logging.info('Resolution data found')
-            print('found resolution ', horizontalResolution, 'x', verticalResolution)
     except FileNotFoundError:
         print("File not found!")
     except PermissionError:
@@ -108,6 +108,12 @@ class FilePlacementHandler(FileSystemEventHandler):
 
     def on_created(self, event):
         if not event.is_directory:
+
+            while os.path.getsize(event.src_path) == 0:
+                print('waiting for file transfer before processing')
+                time.sleep(1)
+
+
             createJobs(event.src_path)
             stitch()
 
@@ -129,11 +135,12 @@ class RenderServiceServicer(render_pb2_grpc.RenderServiceServicer):
 
         logging.warning('Received scene chunk with id=' + str(request.job_id))
 
-        global jobsCompleted
-        jobsCompleted += 1
-        chunk = request.render_chunk
+        
 
         with resultLock:
+            global jobsCompleted
+            jobsCompleted += 1
+            chunk = request.render_chunk
             resultMap[request.job_id] = chunk
         
         return render_pb2.JobCompleteResponse(acknowledged=True)
@@ -159,10 +166,10 @@ class RenderServiceServicer(render_pb2_grpc.RenderServiceServicer):
 def bootstrap():
     renderServer = grpc.server(futures.ThreadPoolExecutor(max_workers=6, thread_name_prefix='gRPC_Render_Server'))
     render_pb2_grpc.add_RenderServiceServicer_to_server(RenderServiceServicer(), renderServer)
-    renderServer.add_insecure_port("127.0.0.1:50505")
+    renderServer.add_insecure_port("0.0.0.0:50051")
 
     renderServer.start()
-    logging.warning("Coordination Server now listening on port 50505")
+    logging.warning("Coordination Server now listening on port 50051")
     
     fsObserver = Observer()
     fsObserver.schedule(event_handler=FilePlacementHandler(), path=os.path.join(os.getcwd(), SCENEPATH), recursive=False)
