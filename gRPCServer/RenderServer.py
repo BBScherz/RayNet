@@ -159,13 +159,35 @@ class RenderServiceServicer(render_pb2_grpc.RenderServiceServicer):
 
 
     
+class CredentialHelper(object):
+    def __init__(self):
+        super().__init__()
 
+    def getCredentials(key: str, cert:str) -> dict:
+
+        credentials = {}
+        with open(file='raynetca.crt', mode='rb') as rootca:
+            credentials['rootca'] = rootca.read()
+
+        with open(file=key, mode='rb') as key:
+            credentials['key'] = key.read()
+
+        with open(file=cert, mode='rb') as cert:
+            credentials['cert'] = cert.read()
+        
+
+        return credentials
 
 
 
 def bootstrap():
     renderServer = grpc.server(futures.ThreadPoolExecutor(max_workers=6, thread_name_prefix='gRPC_Render_Server'))
     render_pb2_grpc.add_RenderServiceServicer_to_server(RenderServiceServicer(), renderServer)
+    
+    # creds = CredentialHelper.getCredentials('raynetserver.key', 'raynetserver.crt')
+    # credentials = grpc.ssl_server_credentials(private_key_certificate_chain_pairs=[(creds['key'], creds['cert'])], root_certificates=creds['rootca'], require_client_auth=True)
+    
+    # renderServer.add_secure_port(address='localhost:50051', server_credentials=credentials)
     renderServer.add_insecure_port("0.0.0.0:50051")
 
     renderServer.start()

@@ -10,8 +10,29 @@ import sys
 from protocolimpls import render_pb2_grpc
 from protocolimpls import render_pb2
 
+class CredentialHelper(object):
+    def __init__(self):
+        super().__init__()
+
+    def getCredentials(key: str, cert:str) -> dict:
+
+        credentials = {}
+        with open(file='raynetca.crt', mode='rb') as rootca:
+            credentials['rootca'] = rootca.read()
+
+        with open(file=key, mode='rb') as key:
+            credentials['key'] = key.read()
+
+        with open(file=cert, mode='rb') as cert:
+            credentials['cert'] = cert.read()
+        
+
+        return credentials
 
 def startup():
+    
+    # creds = CredentialHelper.getCredentials('raynetclient.key', 'raynetclient.crt')
+    
     try:
         cwd = os.path.dirname(__file__)
         os.chdir(os.path.join(cwd, 'bin'))
@@ -21,7 +42,10 @@ def startup():
     bin = os.path.join(os.getcwd(), 'TracerModule')
 
     binaryTag = '.exe' if platform.system() == 'Windows' else ''
-    
+        
+    # credentials = grpc.ssl_channel_credentials(root_certificates=creds['rootca'], private_key=creds['key'], certificate_chain=creds['cert'])
+    # connection = grpc.secure_channel(target='localhost:50051', credentials=credentials, options=[('grpc.ssl_target_name_override','localhost')])
+
     connection = grpc.insecure_channel("ec2-44-198-38-235.compute-1.amazonaws.com:50051")
     methodStub = render_pb2_grpc.RenderServiceStub(connection)
 
