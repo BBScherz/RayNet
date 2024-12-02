@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package render;
+
+// From client to server
+message GetJobRequest {
+  int64 project_id = 1;
+}
+
+message GetCurrentSceneRequest {
+  // Empty
+}
+
+message GetCurrentSceneResponse {
+  bytes scene_data = 1;
+}
+
+message Coordinate {
+  double x = 1;
+  double y = 2;
+}
+
+// Represents a rectangle area defined by two coordinates
+message Rectangle {
+  Coordinate lower_left = 1;
+  Coordinate upper_right = 2;
+}
+
+// From server to client with job details
+message GetJobResponse {
+  Rectangle image_coordinates_to_render = 1;
+  int64 job_id = 2;
+}
+
+message HeartbeatRequest {
+  // Empty
+}
+
+message HeartbeatResponse {
+  bool alive = 1; // Should always be true assuming client is up
+}
+
+message ComputationStatistics {
+  double time_seconds = 1;
+  int64 pixels_rendered = 2;
+}
+
+message JobCompleteRequest {
+  bytes render_chunk = 1; // Rendered image data
+  int64 job_id = 2;
+  ComputationStatistics stats = 3;
+}
+
+// Acknowledgment from server to client
+message JobCompleteResponse {
+  bool acknowledged = 1;
+}
+
+// For web dashboard to upload a scene file
+message UploadSceneRequest {
+  bytes scene_data = 1;
+  string filename = 2; // Optional
+}
+
+message UploadSceneResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message RenderStatsRequest {
+  // Empty
+}
+
+message RenderStatsResponse {
+  int32 jobs_expected = 1;
+  int32 jobs_completed = 2;
+  repeated int32 job_ids_pending = 3;
+  repeated int32 job_ids_completed = 4;
+}
+
+// Request from web dashboard to download rendered image
+message DownloadRenderedImageRequest {
+  // Empty
+}
+
+message DownloadRenderedImageResponse {
+  bytes image_data = 1; // The rendered image data (e.g., PNG format)
+  bool rendering_complete = 3;
+}
+
+service RenderService {
+  rpc GetJob(GetJobRequest) returns (GetJobResponse);
+
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+
+  rpc JobComplete(JobCompleteRequest) returns (JobCompleteResponse);
+
+  rpc GrabScene(GetCurrentSceneRequest) returns (GetCurrentSceneResponse);
+
+  rpc UploadScene(UploadSceneRequest) returns (UploadSceneResponse);
+
+  rpc GetRenderStats(RenderStatsRequest) returns (RenderStatsResponse);
+
+  rpc DownloadRenderedImage(DownloadRenderedImageRequest) returns (DownloadRenderedImageResponse);
+}
+

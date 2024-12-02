@@ -1,2 +1,27 @@
-rt/bin/*
-rt/file/*
+.__pycache__/
+.instance/users.db
+.migrations/
+
+Renderer/rt/bin/*
+Renderer/rt/file/*
+
+# The RayNet client download and saves the nff file into here.
+Renderer/rt/scene.nff
+
+# The RayNet coordination server saves intermediate images here
+Renderer/gRPCServer/output.png
+Renderer/gRPCServer/output.ppm
+
+# Python venv data
+Web/Flask_App/*
+.venv/
+
+# Object files and other C/C++ related stuff
+**.o
+**.gch
+
+**.pyc
+
+**.json
+
+**.DS_Store
