@@ -3,9 +3,9 @@
 import grpc
 import warnings
 
-import protocolimpls.render_pb2 as render__pb2
+from . import render_pb2 as render__pb2
 
-GRPC_GENERATED_VERSION = '1.67.0'
+GRPC_GENERATED_VERSION = '1.68.0'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -54,6 +54,21 @@ class RenderServiceStub(object):
                 request_serializer=render__pb2.GetCurrentSceneRequest.SerializeToString,
                 response_deserializer=render__pb2.GetCurrentSceneResponse.FromString,
                 _registered_method=True)
+        self.UploadScene = channel.unary_unary(
+                '/render.RenderService/UploadScene',
+                request_serializer=render__pb2.UploadSceneRequest.SerializeToString,
+                response_deserializer=render__pb2.UploadSceneResponse.FromString,
+                _registered_method=True)
+        self.GetRenderStats = channel.unary_unary(
+                '/render.RenderService/GetRenderStats',
+                request_serializer=render__pb2.RenderStatsRequest.SerializeToString,
+                response_deserializer=render__pb2.RenderStatsResponse.FromString,
+                _registered_method=True)
+        self.DownloadRenderedImage = channel.unary_unary(
+                '/render.RenderService/DownloadRenderedImage',
+                request_serializer=render__pb2.DownloadRenderedImageRequest.SerializeToString,
+                response_deserializer=render__pb2.DownloadRenderedImageResponse.FromString,
+                _registered_method=True)
 
 
 class RenderServiceServicer(object):
@@ -83,6 +98,24 @@ class RenderServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def UploadScene(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetRenderStats(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DownloadRenderedImage(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_RenderServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -105,6 +138,21 @@ def add_RenderServiceServicer_to_server(servicer, server):
                     servicer.GrabScene,
                     request_deserializer=render__pb2.GetCurrentSceneRequest.FromString,
                     response_serializer=render__pb2.GetCurrentSceneResponse.SerializeToString,
+            ),
+            'UploadScene': grpc.unary_unary_rpc_method_handler(
+                    servicer.UploadScene,
+                    request_deserializer=render__pb2.UploadSceneRequest.FromString,
+                    response_serializer=render__pb2.UploadSceneResponse.SerializeToString,
+            ),
+            'GetRenderStats': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetRenderStats,
+                    request_deserializer=render__pb2.RenderStatsRequest.FromString,
+                    response_serializer=render__pb2.RenderStatsResponse.SerializeToString,
+            ),
+            'DownloadRenderedImage': grpc.unary_unary_rpc_method_handler(
+                    servicer.DownloadRenderedImage,
+                    request_deserializer=render__pb2.DownloadRenderedImageRequest.FromString,
+                    response_serializer=render__pb2.DownloadRenderedImageResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -215,6 +263,87 @@ class RenderService(object):
             '/render.RenderService/GrabScene',
             render__pb2.GetCurrentSceneRequest.SerializeToString,
             render__pb2.GetCurrentSceneResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UploadScene(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/render.RenderService/UploadScene',
+            render__pb2.UploadSceneRequest.SerializeToString,
+            render__pb2.UploadSceneResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetRenderStats(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/render.RenderService/GetRenderStats',
+            render__pb2.RenderStatsRequest.SerializeToString,
+            render__pb2.RenderStatsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DownloadRenderedImage(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/render.RenderService/DownloadRenderedImage',
+            render__pb2.DownloadRenderedImageRequest.SerializeToString,
+            render__pb2.DownloadRenderedImageResponse.FromString,
             options,
             channel_credentials,
             insecure,

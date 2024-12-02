@@ -56,6 +56,38 @@ message JobCompleteResponse {
   bool acknowledged = 1;
 }
 
+// For web dashboard to upload a scene file
+message UploadSceneRequest {
+  bytes scene_data = 1;
+  string filename = 2; // Optional
+}
+
+message UploadSceneResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message RenderStatsRequest {
+  // Empty
+}
+
+message RenderStatsResponse {
+  int32 jobs_expected = 1;
+  int32 jobs_completed = 2;
+  repeated int32 job_ids_pending = 3;
+  repeated int32 job_ids_completed = 4;
+}
+
+// Request from web dashboard to download rendered image
+message DownloadRenderedImageRequest {
+  // Empty
+}
+
+message DownloadRenderedImageResponse {
+  bytes image_data = 1; // The rendered image data (e.g., PNG format)
+  bool rendering_complete = 3;
+}
+
 service RenderService {
   rpc GetJob(GetJobRequest) returns (GetJobResponse);
 
@@ -64,5 +96,11 @@ service RenderService {
   rpc JobComplete(JobCompleteRequest) returns (JobCompleteResponse);
 
   rpc GrabScene(GetCurrentSceneRequest) returns (GetCurrentSceneResponse);
+
+  rpc UploadScene(UploadSceneRequest) returns (UploadSceneResponse);
+
+  rpc GetRenderStats(RenderStatsRequest) returns (RenderStatsResponse);
+
+  rpc DownloadRenderedImage(DownloadRenderedImageRequest) returns (DownloadRenderedImageResponse);
 }
 

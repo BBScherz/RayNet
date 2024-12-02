@@ -1,8 +1,27 @@
-.venv/
 .__pycache__/
-raynet-d2946-firebase-adminsdk-gw9y3-8d478151d2.json
 .instance/users.db
 .migrations/
-.DS_Store
+
 Renderer/rt/bin/*
 Renderer/rt/file/*
+
+# The RayNet client download and saves the nff file into here.
+Renderer/rt/scene.nff
+
+# The RayNet coordination server saves intermediate images here
+Renderer/gRPCServer/output.png
+Renderer/gRPCServer/output.ppm
+
+# Python venv data
+Web/Flask_App/*
+.venv/
+
+# Object files and other C/C++ related stuff
+**.o
+**.gch
+
+**.pyc
+
+**.json
+
+**.DS_Store

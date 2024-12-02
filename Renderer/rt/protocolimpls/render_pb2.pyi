@@ -1,6 +1,7 @@
+from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Mapping as _Mapping, Optional as _Optional, Union as _Union
+from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -77,3 +78,47 @@ class JobCompleteResponse(_message.Message):
     ACKNOWLEDGED_FIELD_NUMBER: _ClassVar[int]
     acknowledged: bool
     def __init__(self, acknowledged: bool = ...) -> None: ...
+
+class UploadSceneRequest(_message.Message):
+    __slots__ = ("scene_data", "filename")
+    SCENE_DATA_FIELD_NUMBER: _ClassVar[int]
+    FILENAME_FIELD_NUMBER: _ClassVar[int]
+    scene_data: bytes
+    filename: str
+    def __init__(self, scene_data: _Optional[bytes] = ..., filename: _Optional[str] = ...) -> None: ...
+
+class UploadSceneResponse(_message.Message):
+    __slots__ = ("success", "message")
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    success: bool
+    message: str
+    def __init__(self, success: bool = ..., message: _Optional[str] = ...) -> None: ...
+
+class RenderStatsRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class RenderStatsResponse(_message.Message):
+    __slots__ = ("jobs_expected", "jobs_completed", "job_ids_pending", "job_ids_completed")
+    JOBS_EXPECTED_FIELD_NUMBER: _ClassVar[int]
+    JOBS_COMPLETED_FIELD_NUMBER: _ClassVar[int]
+    JOB_IDS_PENDING_FIELD_NUMBER: _ClassVar[int]
+    JOB_IDS_COMPLETED_FIELD_NUMBER: _ClassVar[int]
+    jobs_expected: int
+    jobs_completed: int
+    job_ids_pending: _containers.RepeatedScalarFieldContainer[int]
+    job_ids_completed: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, jobs_expected: _Optional[int] = ..., jobs_completed: _Optional[int] = ..., job_ids_pending: _Optional[_Iterable[int]] = ..., job_ids_completed: _Optional[_Iterable[int]] = ...) -> None: ...
+
+class DownloadRenderedImageRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class DownloadRenderedImageResponse(_message.Message):
+    __slots__ = ("image_data", "rendering_complete")
+    IMAGE_DATA_FIELD_NUMBER: _ClassVar[int]
+    RENDERING_COMPLETE_FIELD_NUMBER: _ClassVar[int]
+    image_data: bytes
+    rendering_complete: bool
+    def __init__(self, image_data: _Optional[bytes] = ..., rendering_complete: bool = ...) -> None: ...

@@ -7,6 +7,8 @@ import os
 
 from concurrent import futures
 import threading
+from PIL import Image
+import io
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -16,195 +18,224 @@ import logging
 
 jobsExpected = 0
 jobsCompleted = 0
-jobQueue = queue.Queue(10)
+jobQueue = queue.Queue()
 
 
 resultLock = threading.Lock()
+jobQueueLock = threading.Lock()
 resultMap = {}
-SCENEPATH = "scene_file"
+scene_data_global = None
 
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-def createJobs(filename):
-
-    global jobsExpected
+def createJobs(scene_data):
+    global jobsExpected, scene_data_global
     horizontalResolution = 0
     verticalResolution = 0
-    logging.info('Beginning scene file parsing...')
-    print("opening: ", filename)
-    
-    try:
-        with open(file=filename, mode='r', encoding='ascii') as nff:
-            lines = nff.readlines()
-            print('ingested ', len(lines), 'lines of input file')
-            for line in lines:
+    logging.info('Beginning scene data parsing...')
+    scene_data_global = scene_data
 
-                print(line)
-                parsed = line.strip().split()
-                
-                if(len(parsed) > 0 and parsed[0] == 'resolution'):
+    try:
+        scene_text = scene_data.decode('ascii')
+        lines = scene_text.splitlines()
+        logging.info('Ingested %d lines of input data', len(lines))
+        for line in lines:
+            logging.debug("Parsing line: %s", line)
+            parsed = line.strip().split()
+            if len(parsed) > 0 and parsed[0].lower() == 'resolution':
+                try:
                     horizontalResolution = int(parsed[1])
                     verticalResolution = int(parsed[2])
+                    logging.info('Parsed resolution: %dx%d', horizontalResolution, verticalResolution)
+                except ValueError as e:
+                    logging.error('Invalid resolution values: %s', e)
                     break
-            logging.info('Resolution data found')
-    except FileNotFoundError:
-        print("File not found!")
-    except PermissionError:
-        print("Permission denied!")
+                break
+        if horizontalResolution == 0 or verticalResolution == 0:
+            logging.error('No valid resolution data found in scene file.')
+            return
+        logging.info('Resolution set to %dx%d', horizontalResolution, verticalResolution)
     except Exception as e:
-        print("An error occurred:", e)
+        logging.error("An error occurred while parsing scene data: %s", e)
+        return
 
-    with open(file="output.ppm", mode='w') as ppm:
-        ppm.writelines(['P6\n', str(horizontalResolution) + ' ' + str(verticalResolution) + '\n', '255\n'])
+    try:
+        with open(file="output.ppm", mode='wb') as ppm:
+            ppm.write(b'P6\n')
+            ppm.write(f'{horizontalResolution} {verticalResolution}\n'.encode('ascii'))
+            ppm.write(b'255\n')
+        logging.info('PPM header written successfully.')
+    except Exception as e:
+        logging.error('Error writing PPM header: %s', e)
+        return
 
     logging.info('Creating jobs...')
     jobsExpected = verticalResolution
     jobCounter = 0
-    for scanline in range(0, verticalResolution):
-        
+    for scanline in range(verticalResolution):
         rectStart = render_pb2.Coordinate(x=0, y=scanline)
-        rectEnd = render_pb2.Coordinate(x=horizontalResolution, y=(scanline + 1))
+        # **Ensure yend does not exceed verticalResolution**
+        yend = scanline + 1 if (scanline + 1) <= verticalResolution else verticalResolution
+        rectEnd = render_pb2.Coordinate(x=horizontalResolution, y=yend)
         rect = render_pb2.Rectangle(lower_left=rectStart, upper_right=rectEnd)
         jobCounter += 1
-        jobQueue.put(render_pb2.GetJobResponse(image_coordinates_to_render=rect, job_id=jobCounter))
-        
+        job = render_pb2.GetJobResponse(image_coordinates_to_render=rect, job_id=jobCounter)
+        with jobQueueLock:
+            jobQueue.put(job)
+    logging.info('Queued %d jobs.', jobCounter)
+
 
 def cleanupServerResources():
-    global jobsCompleted, jobsExpected
-    jobsCompleted = 0 
+    global jobsCompleted, jobsExpected, scene_data_global
+    jobsCompleted = 0
     jobsExpected = 0
     resultMap.clear()
-
-    try:
-        sceneFiles = os.listdir('scene_file')
-        for f in sceneFiles:
-            fp = os.path.join('scene_file', f)
-            os.remove(fp)
-            logging.info('removed scene file data')
-    except:
-        logging.error('unable to clear scene file data')
+    scene_data_global = None
+    logging.info('Server resources have been cleaned up.')
 
 
 def stitch():
-
+    global jobsExpected, jobsCompleted
     while True:
-        if(jobsCompleted == jobsExpected):
-            print('all chunks received: ' + str(len(resultMap.keys())))
-            for chunk in resultMap.keys():
+        with resultLock:
+            if jobsCompleted == jobsExpected and jobsExpected != 0:
+                logging.info('All chunks received: %d', len(resultMap.keys()))
+                # Write the chunks in order based on job_id
                 with open("output.ppm", 'ab') as ppm:
-                    ppm.write(resultMap.get(chunk))
+                    for job_id in sorted(resultMap.keys()):
+                        ppm.write(resultMap[job_id])
+                logging.info("An image has been rendered and saved to output.ppm")
                 
-            break
-        else:
-            print('delaying')
-            time.sleep(1)
-
-    # ffmpeg.input('output.ppm').output("output.png", pix_fmt='rgb24').run()
-    logging.info("An image has been rendered")
-    cleanupServerResources()
-
-
-class FilePlacementHandler(FileSystemEventHandler):
-
-    def on_created(self, event):
-        if not event.is_directory:
-
-            while os.path.getsize(event.src_path) == 0:
-                print('waiting for file transfer before processing')
-                time.sleep(1)
-
-
-            createJobs(event.src_path)
-            stitch()
-
-
+                # Convert PPM to PNG
+                try:
+                    with open("output.ppm", 'rb') as ppm_file:
+                        ppm_data = ppm_file.read()
+                    image = Image.open(io.BytesIO(ppm_data))
+                    image.save("output.png", "PNG")
+                    logging.info("Converted output.ppm to output.png successfully.")
+                except Exception as e:
+                    logging.error("Error converting PPM to PNG: %s", e)
+                
+                cleanupServerResources()
+                break
+        time.sleep(1)
 
 
 class RenderServiceServicer(render_pb2_grpc.RenderServiceServicer):
-    def __init__(self) -> None:
-        super().__init__()
-
-    
-
-    def GetJob(self, request, context):
-        
-        return jobQueue.get()
-
-
-    def JobComplete(self, request, context):
-
-        logging.warning('Received scene chunk with id=' + str(request.job_id))
-
-        
-
-        with resultLock:
-            global jobsCompleted
-            jobsCompleted += 1
-            chunk = request.render_chunk
-            resultMap[request.job_id] = chunk
-        
-        return render_pb2.JobCompleteResponse(acknowledged=True)
-    
-
-    def Heartbeat(self, request, context):
-        return render_pb2.HeartbeatResponse(alive=True)
-    
-    def GrabScene(self, request, context):
-
-        data = None
-        with open(os.path.join(SCENEPATH, os.listdir(SCENEPATH)[0]), 'rb') as scene:
-            data = scene.read()
-
-        return render_pb2.GetCurrentSceneResponse(scene_data=data)
-
-
-    
-class CredentialHelper(object):
     def __init__(self):
         super().__init__()
 
-    def getCredentials(key: str, cert:str) -> dict:
+    def GetJob(self, request, context):
+        with jobQueueLock:
+            if not jobQueue.empty():
+                job = jobQueue.get()
+                logging.info('Assigned job ID %d to a client', job.job_id)
+                return job
+            else:
+                # No jobs available
+                return render_pb2.GetJobResponse(job_id=0)
 
-        credentials = {}
-        with open(file='raynetca.crt', mode='rb') as rootca:
-            credentials['rootca'] = rootca.read()
+    def JobComplete(self, request, context):
+        logging.info('Received rendered chunk for job ID %d', request.job_id)
+        with resultLock:
+            global jobsCompleted
+            jobsCompleted += 1
+            resultMap[request.job_id] = request.render_chunk
+        return render_pb2.JobCompleteResponse(acknowledged=True)
 
-        with open(file=key, mode='rb') as key:
-            credentials['key'] = key.read()
+    def Heartbeat(self, request, context):
+        return render_pb2.HeartbeatResponse(alive=True)
 
-        with open(file=cert, mode='rb') as cert:
-            credentials['cert'] = cert.read()
+    def GrabScene(self, request, context):
+        # Send the scene data stored in memory
+        if scene_data_global:
+            data = scene_data_global
+            logging.info('Providing scene data to client')
+        else:
+            data = b''
+            logging.warning('No scene data available to send to client')
+        return render_pb2.GetCurrentSceneResponse(scene_data=data)
+
+    def UploadScene(self, request, context):
+        try:
+            scene_data = request.scene_data
+            if not scene_data:
+                raise ValueError("No scene data provided")
+            logging.info('Received scene data of size %d bytes', len(scene_data))
+            createJobs(scene_data)
+            threading.Thread(target=stitch, daemon=True).start()
+            return render_pb2.UploadSceneResponse(success=True, message='Scene data uploaded and jobs created.')
+        except Exception as e:
+            logging.error('Error uploading scene data: %s', e)
+            return render_pb2.UploadSceneResponse(success=False, message=str(e))
         
+    def DownloadRenderedImage(self, request, context):
+        # Check if rendering is complete
+        with resultLock:
+            rendering_complete = (jobsExpected > 0) and (jobsCompleted == jobsExpected)
+        # Prepare render stats
+        with resultLock, jobQueueLock:
+            job_ids_pending = [job.job_id for job in list(jobQueue.queue)]
+            job_ids_completed = list(resultMap.keys())
+            stats = render_pb2.RenderStatsResponse(
+                jobs_expected=jobsExpected,
+                jobs_completed=jobsCompleted,
+                job_ids_pending=job_ids_pending,
+                job_ids_completed=job_ids_completed
+            )
+        image_data = b''
+        if rendering_complete:
+            try:
+                # Read the PNG image instead of PPM
+                with open('output.png', 'rb') as img_file:
+                    image_data = img_file.read()
+                logging.info('Rendered image has been read successfully. Size: %d bytes.', len(image_data))
+            except Exception as e:
+                logging.error('Error reading rendered image: %s', e)
+                rendering_complete = False  # Cannot read image
+        else:
+            logging.info('Rendering is not yet complete.')
+        return render_pb2.DownloadRenderedImageResponse(
+            image_data=image_data,
+            rendering_complete=rendering_complete
+        )
+    
+    def GetRenderStats(self, request, context):
+        logging.info('Received GetRenderStats request.')
 
-        return credentials
-
+        with resultLock, jobQueueLock:
+            job_ids_pending = [job.job_id for job in list(jobQueue.queue)]
+            job_ids_completed = list(resultMap.keys())
+            stats = render_pb2.RenderStatsResponse(
+                jobs_expected=jobsExpected,
+                jobs_completed=jobsCompleted,
+                job_ids_pending=job_ids_pending,
+                job_ids_completed=job_ids_completed
+            )
+        
+        logging.info('Returning render stats: %s', stats)
+        return stats
 
 
 def bootstrap():
-    renderServer = grpc.server(futures.ThreadPoolExecutor(max_workers=6, thread_name_prefix='gRPC_Render_Server'))
-    render_pb2_grpc.add_RenderServiceServicer_to_server(RenderServiceServicer(), renderServer)
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=6, thread_name_prefix='gRPC_Render_Server'))
+    render_pb2_grpc.add_RenderServiceServicer_to_server(RenderServiceServicer(), server)
     
     # creds = CredentialHelper.getCredentials('raynetserver.key', 'raynetserver.crt')
     # credentials = grpc.ssl_server_credentials(private_key_certificate_chain_pairs=[(creds['key'], creds['cert'])], root_certificates=creds['rootca'], require_client_auth=True)
     
     # renderServer.add_secure_port(address='localhost:50051', server_credentials=credentials)
-    renderServer.add_insecure_port("0.0.0.0:50051")
+    server.add_insecure_port("0.0.0.0:50051")
 
-    renderServer.start()
-    logging.warning("Coordination Server now listening on port 50051")
-    
-    fsObserver = Observer()
-    fsObserver.schedule(event_handler=FilePlacementHandler(), path=os.path.join(os.getcwd(), SCENEPATH), recursive=False)
-    fsObserver.start()
+    server.start()
+    logging.info("Coordination Server is now listening on port 50051")
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        fsObserver.stop()
-    
+        server.stop(0)
+        logging.info("Coordination Server has been terminated.")
 
-    renderServer.wait_for_termination()
-    logging.warning("Terminating Coordination Server")
-    fsObserver.join()
+
 if __name__ == '__main__':
     bootstrap()

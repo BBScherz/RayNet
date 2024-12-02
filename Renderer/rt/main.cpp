@@ -16,16 +16,17 @@ using namespace std;
 int main(int argc, char* argv[]){
     
 
-    if(argc != 6){
+    if(argc != 7){
         cerr << "Error starting TracerModule.  Exiting..." << endl;
         exit(-1);
     }
 
     string file = argv[1];
-    int beginx = atoi(argv[2]);
-    int endx = atoi(argv[3]);
-    int beginy = atoi(argv[4]);
-    int endy = atoi(argv[5]);
+    string outChunkFile = argv[2];
+    int beginx = atoi(argv[3]);
+    int endx = atoi(argv[4]);
+    int beginy = atoi(argv[5]);
+    int endy = atoi(argv[6]);
     cout << beginx << " " << beginy << " " << endx << " " << endy << endl;
 
     chrono::steady_clock::time_point begin = chrono::steady_clock::now();
@@ -51,7 +52,7 @@ int main(int argc, char* argv[]){
     cout << "Render time (wall): " << chrono::duration_cast<chrono::seconds>(end - begin).count() << "(seconds)" << endl;    
 
 
-    std::ofstream out("chunk.temp", ios::out | ios::binary);
+    std::ofstream out(outChunkFile, ios::out | ios::binary);
     out.write(reinterpret_cast<char*>(redneredChunk), (endx - beginx) * (endy - beginy) * 3);
     out.close();
     delete[] redneredChunk;

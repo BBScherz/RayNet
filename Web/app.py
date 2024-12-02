@@ -1,6 +1,7 @@
 import os
+import sys
 import smtplib
-from flask import Flask, render_template, redirect, url_for, request, flash, session
+from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
@@ -11,6 +12,16 @@ from functools import wraps
 from werkzeug.utils import secure_filename
 import base64
 from flask_migrate import Migrate
+from sqlalchemy.types import Text
+import time
+import threading
+import grpc
+import json
+
+project_path = os.path.abspath('protocolimpls')
+sys.path.append(project_path)
+
+from protocolimpls import render_pb2_grpc, render_pb2
 
 
 # Initialize the Flask application
@@ -39,7 +50,9 @@ migrate = Migrate(app, db)
 @app.template_filter('b64encode')
 def b64encode_filter(data):
     """Encode binary data into base64 string for rendering images."""
-    return base64.b64encode(data).decode('utf-8')
+    if data:
+        return base64.b64encode(data).decode('utf-8')
+    return ''
 
 # Define database models
 class User(db.Model):
@@ -57,6 +70,90 @@ class Upload(db.Model):
     data = db.Column(db.LargeBinary, nullable=False)  # Store file data in binary format
     upload_date = db.Column(db.DateTime, default=datetime.utcnow)  # Automatically add timestamp
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # Foreign key to User table
+    render_status = db.Column(db.String(20), default='pending')  # Track rendering status
+    render_stats = db.Column(Text, nullable=True)  # Store rendering stats as JSON string
+    rendered_image = db.Column(db.LargeBinary, nullable=True)  # Store the rendered image in PNG format
+
+
+
+def render_scene(upload_id):
+    """Background function to upload scene file and monitor rendering."""
+    with app.app_context():
+        upload = Upload.query.get(upload_id)
+        if not upload:
+            print("ERROR: Upload with id {upload_id} not found.")
+            return
+
+        # Update the render_status to 'rendering'
+        upload.render_status = 'rendering'
+        db.session.commit()
+        print(f"Upload {upload_id} status set to 'rendering'.")
+
+        # Establish gRPC connection to the RenderServer
+        channel = grpc.insecure_channel('localhost:50051')  # Update if RenderServer is on a different host
+        stub = render_pb2_grpc.RenderServiceStub(channel)
+
+        try:
+            # Upload the scene data
+            response = stub.UploadScene(render_pb2.UploadSceneRequest(
+                scene_data=upload.data,
+                filename=upload.filename
+            ))
+            if response.success:
+                print('Scene uploaded successfully.')
+            else:
+                print("ERROR: Scene upload failed: {response.message}")
+                # Update status to 'failed'
+                upload.render_status = 'failed'
+                db.session.commit()
+                return
+        except Exception as e:
+            print("ERROR: Error uploading scene: {e}")
+            # Update status to 'failed'
+            upload.render_status = 'failed'
+            db.session.commit()
+            return
+
+        # Periodically check rendering stats
+        while True:
+            try:
+                stats_response = stub.GetRenderStats(render_pb2.RenderStatsRequest())
+                # Update render_stats field in the database
+                render_stats = {
+                    'jobs_expected': stats_response.jobs_expected,
+                    'jobs_completed': stats_response.jobs_completed,
+                    'job_ids_pending': list(stats_response.job_ids_pending),
+                    'job_ids_completed': list(stats_response.job_ids_completed)
+                }
+                upload.render_stats = json.dumps(render_stats)
+                db.session.commit()
+                print(f"Upload {upload_id} render_stats updated: {render_stats}")
+
+                # Check if rendering is complete
+                if stats_response.jobs_completed == stats_response.jobs_expected and stats_response.jobs_expected > 0:
+                    # Fetch the rendered image
+                    image_response = stub.DownloadRenderedImage(render_pb2.DownloadRenderedImageRequest())
+                    if image_response.rendering_complete:
+                        # Save the rendered image to the database
+                        upload.rendered_image = image_response.image_data
+                        upload.render_status = 'completed'
+                        db.session.commit()
+                        print(f"Upload {upload_id} rendering completed and image saved.")
+                    else:
+                        print("ERROR: Rendering reported as complete but no image received.")
+                        upload.render_status = 'failed'
+                        db.session.commit()
+                    break
+                else:
+                    # Wait before checking again
+                    print(f"Upload {upload_id}: Rendering in progress. Completed {stats_response.jobs_completed}/{stats_response.jobs_expected} jobs.")
+                    time.sleep(5)
+            except Exception as e:
+                print("ERROR: Error fetching render stats: {e}")
+                upload.render_status = 'failed'
+                db.session.commit()
+                break
+
 
 # Helper function to enforce login requirements
 def login_required(f):
@@ -172,12 +269,37 @@ def upload_file():
         if file:
             filename = secure_filename(file.filename)
             data = file.read()
-            new_upload = Upload(filename=filename, data=data, user_id=session['user_id'])
+            new_upload = Upload(filename=filename, data=data, user_id=session['user_id'], render_status='pending')
             db.session.add(new_upload)
             db.session.commit()
             flash('File uploaded successfully!', 'success')
+            # Start background task to upload scene and monitor rendering
+            threading.Thread(target=render_scene, args=(new_upload.id,), daemon=True).start()
             return redirect(url_for('dashboard'))
     return render_template('upload.html')
+
+@app.route('/api/dashboard')
+@login_required
+def api_dashboard():
+    """API endpoint to fetch user uploads and their statuses."""
+    user = User.query.get(session['user_id'])
+    uploads = Upload.query.filter_by(user_id=user.id).all()
+
+    uploads_data = []
+    for upload in uploads:
+        rendered_image_b64 = base64.b64encode(upload.rendered_image).decode('utf-8') if upload.rendered_image else None
+        upload_data = {
+            'filename': upload.filename,
+            'upload_date': upload.upload_date.strftime('%Y-%m-%d %H:%M:%S'),
+            'render_status': upload.render_status,
+            'render_stats': json.loads(upload.render_stats) if upload.render_stats else {},
+            'rendered_image': rendered_image_b64
+        }
+        uploads_data.append(upload_data)
+        if rendered_image_b64:
+            print(f"Encoded image for upload {upload.id} with size {len(rendered_image_b64)} characters.")
+
+    return jsonify({'uploads': uploads_data})
 
 @app.route('/dashboard')
 @login_required
@@ -185,6 +307,18 @@ def dashboard():
     """Display user uploads on the dashboard."""
     user = User.query.get(session['user_id'])
     uploads = Upload.query.filter_by(user_id=user.id).all()
+
+    # For each upload, if rendering, parse the render_stats
+    for upload in uploads:
+        if upload.render_status == 'rendering':
+            # Parse the render_stats JSON string
+            if upload.render_stats:
+                try:
+                    upload.render_stats_parsed = json.loads(upload.render_stats)
+                except json.JSONDecodeError:
+                    upload.render_stats_parsed = {}
+            else:
+                upload.render_stats_parsed = {}
     return render_template('dashboard.html', user=user, uploads=uploads)
 
 @app.route('/logout')
@@ -214,10 +348,13 @@ def send_email(to_email, subject, content):
 os.makedirs(os.path.join(basedir, 'instance'), exist_ok=True)
 
 # Check if the database file exists, and create it if it doesn't
-if not os.path.exists(os.path.join(basedir, 'instance', 'users.db')):
-    with app.app_context():
-        db.create_all()
+with app.app_context():
+    db.create_all()
 
+    # Clear the uploads table on server startup
+    num_deleted = Upload.query.delete()
+    db.session.commit()
+    print(f"[INFO] Cleared {num_deleted} entries from the 'uploads' table on server startup.")
 
 # Run the application
 if __name__ == '__main__':

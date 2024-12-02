@@ -51,7 +51,7 @@ void SceneFileParser::clearStreamMacro(stringstream& s){
  */
 Scene SceneFileParser::parseSceneFile(string file){
 
-    string path = "../file/" + file;
+    string path = file;
     string currentSceneLine = "";
     Scene scene;
 
